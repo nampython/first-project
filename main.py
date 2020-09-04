@@ -1,5 +1,6 @@
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 
 HERE = Path(__file__).parent
@@ -40,6 +41,7 @@ final_data = final_data.fillna(0)
 
 # calculating 
 #1 calculating the exam total score
+
 n_exams = 3
 for i in range(1, n_exams + 1):
 	final_data[f"Exam {i} score"] = (final_data[f'Exam {i}']  / final_data[f"Exam {i} - Max Points"])
@@ -61,4 +63,55 @@ final_data['average_hw_scores'] = average_hw_scores / homework_scores.shape[1]
 final_data["Homework Score"] = final_data[
     ["Total homework", "average_hw_scores"]
 ].max(axis=1)
-print(final_data)
+
+# calculating quiz
+
+quiz_scores = final_data.filter(regex=r"^Quiz \d$", axis=1)
+
+quiz_max_points = pd.Series(
+    {"Quiz 1": 11, "Quiz 2": 15, "Quiz 3": 17, "Quiz 4": 14, "Quiz 5": 12}
+)
+
+sum_of_quiz_scores = quiz_scores.sum(axis= 1)
+sum_of_max_points = quiz_max_points.sum()
+final_data['Total Quizzes'] = sum_of_quiz_scores / sum_of_max_points
+
+average_quiz_score = (quiz_scores / quiz_max_points).sum(axis= 1)
+
+final_data["average quizzes"] = average_quiz_score / quiz_scores.shape[1]
+
+final_data["Quiz Score"] = final_data[
+    ["Total Quizzes", "average quizzes"]
+].max(axis=1)
+
+
+weightings = pd.Series(
+    {
+        "Exam 1 score": 0.05,
+        "Exam 2 score": 0.1,
+        "Exam 3 score": 0.15,
+        "Homework Score": 0.4,
+        "Quiz Score": 0.30,
+   
+    }
+)
+
+final_data['Final score'] = (final_data[weightings.index] * weightings).sum(axis= 1)
+final_data["Ceiling Score"] = np.ceil(final_data['Final score'] * 100)
+
+grades = {
+    90: "A",
+    80: "B",
+    70: "C",
+    60: "D",
+    0: "F",
+}
+
+def grade_mapping(value):
+	for key, letter in grades.items():
+		if value >= key:
+			return letter
+
+
+letter_grades = final_data['Ceiling Score'].map(grade_mapping)
+
